@@ -1,7 +1,8 @@
 const predictClassification = require('../services/inferenceService');
 const storeData = require('../services/storeData');
 const getHistories = require('../services/getHistories');
-const authService = require('../services/authService');
+// const authService = require('../services/authService');
+const { registerUser, loginUser } = require('../services/authService');
 const crypto = require('crypto');
 const { InputError } = require('../exceptions/InputError');
 
@@ -71,45 +72,39 @@ async function getHistoriesHandler(req, res, next) {
 }
 
 async function registerHandler(req, res, next) {
-  try {
-    const user = req.body;
-    const { token, user: registeredUser } = await authService.register(user);
-    res.status(200).json({
-      status: 'success',
-      message: 'User registered successfully',
-      data: {
-        access_token: token,
-        user: registeredUser
-      }
-    });
-  } catch (error) {
-    res.status(409).json({
-      status: 'fail',
-      message: error.message,
-      data: {}
-    });
+    try {
+      const userData = req.body;
+      const result = await registerUser(userData);
+      res.status(200).json({
+        status: 'success',
+        message: 'User registered successfully',
+        data: result
+      });
+    } catch (error) {
+      res.status(409).json({
+        status: 'fail',
+        message: error.message,
+        data: {}
+      });
+    }
   }
-}
 
 async function loginHandler(req, res, next) {
-  try {
-    const { email, password } = req.body;
-    const { token, user } = await authService.login(email, password);
-    res.status(200).json({
-      status: 'success',
-      message: 'Login successful',
-      data: {
-        access_token: token,
-        user
-      }
-    });
-  } catch (error) {
-    res.status(401).json({
-      status: 'fail',
-      message: error.message,
-      data: {}
-    });
+    try {
+      const { email, password } = req.body;
+      const result = await loginUser({ email, password });
+      res.status(200).json({
+        status: 'success',
+        message: 'Login successful',
+        data: result
+      });
+    } catch (error) {
+      res.status(401).json({
+        status: 'fail',
+        message: error.message,
+        data: {}
+      });
+    }
   }
-}
 
 module.exports = { postPredictHandler, savePredictHandler, getHistoriesHandler, registerHandler, loginHandler };

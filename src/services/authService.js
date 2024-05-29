@@ -1,43 +1,76 @@
 const jwt = require('jsonwebtoken');
-const { secret, expiresIn } = require('../config/jwtConfig');
 const bcrypt = require('bcrypt');
 const { Firestore } = require('@google-cloud/firestore');
+const { secret, expiresIn } = require('../config/jwtConfig');
+
 const db = new Firestore();
+const usersCollection = db.collection('users');
 
-async function register(user) {
-  const usersRef = db.collection('users');
-  const existingUser = await usersRef.where('email', '==', user.email).get();
+async function registerUser(userData) {
+  const { name, email, gender, birth_date, password } = userData;
+  const hashedPassword = await bcrypt.hash(password, 10);
 
-  if (!existingUser.empty) {
+  const userDoc = await usersCollection.doc(email).get();
+  if (userDoc.exists) {
     throw new Error('Email already exists');
   }
 
-  const hashedPassword = await bcrypt.hash(user.password, 10);
-  user.password = hashedPassword;
-  await usersRef.add(user);
+  await usersCollection.doc(email).set({
+    name,
+    email,
+    gender,
+    birth_date,
+    password: hashedPassword,
+    email_verified: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  });
 
-  const token = jwt.sign({ email: user.email }, secret, { expiresIn });
-  return { token, user };
+  const payload = { email };
+  const token = jwt.sign(payload, secret, { expiresIn });
+
+  return {
+    access_token: token,
+    token_type: 'bearer',
+    user: {
+      name,
+      email,
+      gender,
+      birth_date,
+      email_verified: false
+    }
+  };
 }
 
-async function login(email, password) {
-  const usersRef = db.collection('users');
-  const snapshot = await usersRef.where('email', '==', email).get();
-
-  if (snapshot.empty) {
-    throw new Error('Invalid email or password');
+async function loginUser({ email, password }) {
+  const userDoc = await usersCollection.doc(email).get();
+  if (!userDoc.exists) {
+    throw new Error('User not found');
   }
 
-  const userDoc = snapshot.docs[0];
   const user = userDoc.data();
-
   const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
-    throw new Error('Invalid email or password');
+    throw new Error('Password is incorrect');
   }
 
-  const token = jwt.sign({ email: user.email }, secret, { expiresIn });
-  return { token, user };
+  const payload = { email };
+  const token = jwt.sign(payload, secret, { expiresIn });
+
+  return {
+    access_token: token,
+    token_type: 'bearer',
+    user: {
+      name: user.name,
+      email: user.email,
+      gender: user.gender,
+      birth_date: user.birth_date,
+      email_verified: user.email_verified
+    }
+  };
 }
 
-module.exports = { register, login };
+module.exports = {
+  registerUser,
+  loginUser,
+};
