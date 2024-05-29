@@ -9,7 +9,9 @@ const { InputError } = require('../exceptions/InputError');
 const { addTokenToBlacklist } = require('../middleware/blacklistToken');
 const { Firestore } = require('@google-cloud/firestore');
 const firestore = new Firestore(); // Initialize Firestore
-
+const bucket = require('../config/storageConfig');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 
 async function postPredictHandler(req, res, next) {
   try {
@@ -237,4 +239,108 @@ async function loginHandler(req, res, next) {
     }
   }
 
-  module.exports = { postPredictHandler, savePredictHandler, getHistoriesHandler, registerHandler, loginHandler, logoutHandler , updatePasswordHandler, getUserDetailHandler};
+  async function updateAvatarHandler(req, res, next) {
+    try {
+      const user = req.user;
+      const file = req.file;
+  
+      if (!file) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'No file uploaded',
+          data: {}
+        });
+      }
+  
+      const blob = bucket.file(`avatars/${uuidv4()}_${path.basename(file.originalname)}`);
+      const blobStream = blob.createWriteStream({
+        resumable: false
+      });
+  
+      blobStream.on('error', (err) => {
+        next(err);
+      });
+  
+      blobStream.on('finish', async () => {
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+  
+        const userRef = firestore.collection('users').doc(user.email);
+        const doc = await userRef.get();
+  
+        if (!doc.exists) {
+          return res.status(404).json({
+            status: 'fail',
+            message: 'User not found',
+            data: {}
+          });
+        }
+  
+        await userRef.update({ avatar: publicUrl, updated_at: new Date().toISOString() });
+  
+        const updatedUser = (await userRef.get()).data();
+  
+        res.status(200).json({
+          status: 'success',
+          message: 'Avatar updated successfully',
+          data: updatedUser
+        });
+      });
+  
+      blobStream.end(file.buffer);
+    } catch (error) {
+      res.status(500).json({
+        status: 'fail',
+        message: error.message,
+        data: {}
+      });
+    }
+  }
+  async function updateProfileHandler(req, res, next) {
+    try {
+      const user = req.user;
+      const { name, gender, birth_date } = req.body;
+  
+      const userRef = firestore.collection('users').doc(user.email);
+      const doc = await userRef.get();
+  
+      if (!doc.exists) {
+        return res.status(404).json({
+          status: 'fail',
+          message: 'User not found',
+          data: {}
+        });
+      }
+  
+      await userRef.update({
+        name,
+        gender,
+        birth_date,
+        updated_at: new Date().toISOString()
+      });
+  
+      const updatedUser = (await userRef.get()).data();
+  
+      res.status(200).json({
+        status: 'success',
+        message: 'Profile updated successfully',
+        data: updatedUser
+      });
+    } catch (error) {
+      res.status(500).json({
+        status: 'fail',
+        message: error.message,
+        data: {}
+      });
+    }
+  }
+  
+  module.exports = { postPredictHandler, 
+    savePredictHandler, 
+    getHistoriesHandler, 
+    registerHandler, 
+    loginHandler, 
+    logoutHandler , 
+    updatePasswordHandler, 
+    getUserDetailHandler,
+    updateAvatarHandler,
+    updateProfileHandler};

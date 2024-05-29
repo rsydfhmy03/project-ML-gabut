@@ -21,8 +21,8 @@ app.use(cors());
       if (err instanceof InputError) {
         return res.status(400).json({
           status: 'fail',
-        //   message: `${err.message} Silakan gunakan foto lain.`
-        message : 'Terjadi kesalahan dalam melakukan prediksi'
+          message: `${err.message} Silakan gunakan foto lain.`
+        // message : 'Terjadi kesalahan dalam melakukan prediksi'
         });
       }
       if (err.code === 'LIMIT_FILE_SIZE') { // Multer specific error for file size limit
@@ -39,12 +39,12 @@ app.use(cors());
       }
       res.status(500).json({
         status: 'fail',
-        message: 'Terjadi kesalahan dalam melakukan prediksi'
+        message: `Terjadi kesalahan ${err.message} `
       });
     });
 
-    // const port = process.env.PORT || 3000;
-    const port = 3000
+    const port = process.env.PORT || 3000;
+    // const port = 3000
     app.listen(port, () => {
       console.log(`Server running on http://localhost:${port}`);
     });
