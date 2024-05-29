@@ -6,7 +6,10 @@ const {
   savePredictHandler,
   getHistoriesHandler,
   registerHandler,
-  loginHandler
+  loginHandler,
+  logoutHandler,
+  updatePasswordHandler,
+  getUserDetailHandler
 } = require('./handler');
 const authenticate = require('../middleware/authenticate');
 
@@ -20,5 +23,8 @@ router.post('/auth/login', loginHandler);
 router.post('/predict', upload.single('image'), postPredictHandler);
 router.post('/predict/save', authenticate, savePredictHandler);
 router.get('/predict/histories', authenticate, getHistoriesHandler);
+router.post('/auth/logout', authenticate, logoutHandler);
+router.put('/auth/update-password', authenticate,updatePasswordHandler );
+router.get('/user/detail', authenticate, getUserDetailHandler);
 
 module.exports = router;
